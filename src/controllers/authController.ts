@@ -68,16 +68,16 @@ export const login = async (req: Request, res: Response) => {
         const { email, password } = req.body;
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) {
+        if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            return res.status(500).json({ error: 'JWT secret not set' });
         }
 
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user.id }, secret, { expiresIn: '1h' });
         res.json({ token });
     } catch (error) {
         res.status(500).json({ error: 'Error logging in' });
